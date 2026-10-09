@@ -201,9 +201,7 @@ async function handleLeveling(message, client) {
     }
 
     if (levelingConfig.ignoredRoles?.length > 0) {
-      const member = await message.guild.members.fetch(message.author.id).catch(() => {
-        return null;
-      });
+      const member = await message.guild.members.fetch(message.author.id).catch(() => null);
       if (member && member.roles.cache.some(role => levelingConfig.ignoredRoles.includes(role.id))) {
         return;
       }
@@ -213,7 +211,8 @@ async function handleLeveling(message, client) {
       return;
     }
 
-    if (!message.content || message.content.trim().length === 0) {
+    // Prevents short/spammy messages (<3 characters) from granting XP
+    if (!message.content || message.content.trim().length < 3) {
       return;
     }
 
@@ -246,6 +245,28 @@ async function handleLeveling(message, client) {
       logger.info(
         `${message.author.tag} leveled up to level ${result.level} in ${message.guild.name}`
       );
+
+      // Stop execution if announcements are explicitly disabled
+      if (levelingConfig.announcementType === 'disabled') {
+        return;
+      }
+
+      const levelEmbed = createEmbed({
+        title: '🎉 Level Up!',
+        description: `Congratulations <@${message.author.id}>, you reached **Level ${result.level}**!`,
+        color: 'success',
+      });
+
+      // Deliver to specified leveling channel; fall back to active chat channel
+      let targetChannel = message.channel;
+      if (levelingConfig.channelId) {
+        const designatedChannel = message.guild.channels.cache.get(levelingConfig.channelId);
+        if (designatedChannel) {
+          targetChannel = designatedChannel;
+        }
+      }
+
+      await targetChannel.send({ embeds: [levelEmbed] }).catch(() => {});
     }
   } catch (error) {
     logger.error('Error handling leveling for message:', error);
