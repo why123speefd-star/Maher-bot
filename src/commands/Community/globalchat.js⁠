@@ -1,0 +1,67 @@
+import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { getFromDb, setInDb } from '../../utils/database/wrapper.js';
+import { logger } from '../../utils/logger.js';
+
+export default {
+    data: new SlashCommandBuilder()
+        .setName('globalchat')
+        .setDescription('Configure the global chat system for this server')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+        .addSubcommand(sub =>
+            sub.setName('setup')
+               .setDescription('Set up the current channel as the global chat channel'))
+        .addSubcommand(sub =>
+            sub.setName('disable')
+               .setDescription('Disable global chat in this server')),
+
+    async execute(interaction) {
+        const subcommand = interaction.options.getSubcommand();
+        const guildId = interaction.guild.id;
+        const channel = interaction.channel;
+
+        if (subcommand === 'setup') {
+            try {
+                // Create or find existing webhook for global chat
+                let webhooks = await channel.fetchWebhooks();
+                let webhook = webhooks.find(wh => wh.name === 'MaherBot Global Chat');
+
+                if (!webhook) {
+                    webhook = await channel.createWebhook({
+                        name: 'MaherBot Global Chat',
+                        avatar: interaction.client.user.displayAvatarURL(),
+                        reason: 'Global Chat Network Hook'
+                    });
+                }
+
+                // Save channel and webhook details to DB
+                const globalData = await getFromDb('global_chat_channels', {});
+                globalData[guildId] = {
+                    channelId: channel.id,
+                    webhookUrl: webhook.url,
+                    webhookId: webhook.id
+                };
+
+                await setInDb('global_chat_channels', globalData);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🌐 Global Chat Enabled')
+                    .setDescription(`This channel (<#${channel.id}>) is now connected to the Global Chat Network!\n\nMessages sent here will broadcast across all connected servers. Replying to messages is fully supported.`)
+                    .setColor('#57F287');
+
+                await interaction.reply({ embeds: [embed] });
+            } catch (err) {
+                logger.error('Failed to set up global chat:', err);
+                await interaction.reply({ content: '❌ Failed to create webhook. Ensure I have `Manage Webhooks` permissions!', flags: 64 });
+            }
+        } else if (subcommand === 'disable') {
+            const globalData = await getFromDb('global_chat_channels', {});
+            if (globalData[guildId]) {
+                delete globalData[guildId];
+                await setInDb('global_chat_channels', globalData);
+                await interaction.reply({ content: '🌐 Global Chat has been disabled for this server.' });
+            } else {
+                await interaction.reply({ content: '⚠️ Global Chat is not active in this server.', flags: 64 });
+            }
+        }
+    }
+};
