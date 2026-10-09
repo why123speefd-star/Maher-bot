@@ -298,7 +298,7 @@ class TitanBot extends Client {
         res.sendFile(path.join(viewsDir, 'dashboard.html'));
       });
 
-      app.use('/auth', createAuthRouter());
+      app.use('/auth', createAuthRouter);
       app.use('/api/servers', createServersRouter(this));
 
       app.use(
