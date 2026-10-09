@@ -1,3 +1,4 @@
+
 /**
  * Single source of truth for the PostgreSQL schema.
  *
@@ -172,6 +173,14 @@ export const tableStatements = [
         value JSONB NOT NULL,
         expires_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // Dashboard server settings
+    `CREATE TABLE IF NOT EXISTS guild_dashboard_settings (
+        guild_id VARCHAR(20) PRIMARY KEY,
+        settings JSONB NOT NULL DEFAULT '{}',
+        updated_by VARCHAR(20),
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 ];
 
