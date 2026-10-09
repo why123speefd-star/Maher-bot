@@ -108,7 +108,7 @@ export async function createInitialHelpMenu(client) {
     });
 
     embed.setFooter({ 
-        text: "Made with ❤️" 
+        text: "Made with Maher" 
     });
     embed.setTimestamp();
 
@@ -118,8 +118,12 @@ export async function createInitialHelpMenu(client) {
         .setStyle(ButtonStyle.Danger);
 
     const supportButton = new ButtonBuilder()
-        .setLabel("Support Server")
-        .setURL("https://discord.gg/QnWNz2dKCE")
+        .setLabel("Support Maher Server")
+        .setURL("https://discord.gg/kBTgy5dpTF")
+        .setStyle(ButtonStyle.Link);
+    const supportButton = new ButtonBuilder()
+        .setLabel("Want join AKDRAGONx ")
+        .setURL("https://discord.gg/xAzH6uPsu9")
         .setStyle(ButtonStyle.Link);
 
     const selectRow = createSelectMenu(
