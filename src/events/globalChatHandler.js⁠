@@ -1,0 +1,57 @@
+import { Events, WebhookClient } from 'discord.js';
+import { getFromDb } from '../utils/database/wrapper.js';
+import { logger } from '../utils/logger.js';
+
+export default {
+    name: Events.MessageCreate,
+    async execute(message) {
+        if (!message.guild || message.author.bot || message.webhookId) return;
+
+        // Fetch global chat channels registry
+        const globalData = await getFromDb('global_chat_channels', {});
+        const currentGuildId = message.guild.id;
+
+        // Ensure current message is in a registered global channel
+        if (!globalData[currentGuildId] || globalData[currentGuildId].channelId !== message.channel.id) {
+            return;
+        }
+
+        // Delete user message locally so webhook replaces it smoothly (optional clean look)
+        if (message.deletable) {
+            await message.delete().catch(() => {});
+        }
+
+        let content = message.content || '';
+
+        // Handle Reply Attachment Context
+        if (message.reference) {
+            try {
+                const referencedMsg = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+                if (referencedMsg) {
+                    const originalAuthor = referencedMsg.author.username;
+                    const snippet = referencedMsg.content ? referencedMsg.content.substring(0, 40) : '[Attachment/Embed]';
+                    content = `> 💬 *Replying to @${originalAuthor}: "${snippet}"*\n${content}`;
+                }
+            } catch (err) {
+                logger.error('Failed to parse reply reference in global chat:', err);
+            }
+        }
+
+        // Broadcast to all other registered servers
+        for (const [targetGuildId, config] of Object.entries(globalData)) {
+            try {
+                const webhook = new WebhookClient({ url: config.webhookUrl });
+
+                await webhook.send({
+                    username: `${message.author.username} [${message.guild.name}]`,
+                    avatarURL: message.author.displayAvatarURL({ dynamic: true }),
+                    content: content.length > 0 ? content : undefined,
+                    files: [...message.attachments.values()].map(a => a.url),
+                    allowedMentions: { parse: [] } // Prevent mass ping exploits
+                });
+            } catch (err) {
+                logger.error(`Failed to broadcast global chat message to Guild ${targetGuildId}:`, err);
+            }
+        }
+    }
+};
