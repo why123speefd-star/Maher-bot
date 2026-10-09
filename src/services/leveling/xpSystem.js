@@ -11,7 +11,7 @@ import { wrapServiceBoundary } from '../../utils/errorHandler.js';
  * Award XP to a member. Returns null when XP is skipped (disabled/invalid amount).
  * Throws on storage or unexpected failures.
  */
-export const addXp = wrapServiceBoundary(async function addXp(client, guild, member, xpToAdd) {
+export const addXp = wrapServiceBoundary(async function addXp(client, guild, member, xpToAdd, options = {}) {
   const lockKey = `leveling:${guild.id}:${member.user.id}`;
   return await Mutex.runExclusive(lockKey, async () => {
     if (!xpToAdd || xpToAdd <= 0) {
@@ -48,7 +48,9 @@ export const addXp = wrapServiceBoundary(async function addXp(client, guild, mem
     }
 
     if (didLevelUp) {
-      if (config.announceLevelUp) {
+      // Only fire internal level up message if explicitly requested (defaults to false when handled externally)
+      const shouldAnnounce = options.sendAnnouncement ?? false;
+      if (config.announceLevelUp && shouldAnnounce) {
         await sendLevelUpAnnouncement(guild, member, levelData, config);
       }
 
@@ -111,8 +113,8 @@ async function awardRoleReward(guild, member, roleId, level) {
 
 async function sendLevelUpAnnouncement(guild, member, levelData, config) {
   try {
-    const levelUpChannel = config.levelUpChannel
-      ? guild.channels.cache.get(config.levelUpChannel)
+    const levelUpChannel = config.levelUpChannel || config.channelId
+      ? guild.channels.cache.get(config.levelUpChannel || config.channelId)
       : guild.systemChannel;
 
     if (!levelUpChannel || !levelUpChannel.isTextBased()) {
@@ -126,10 +128,12 @@ async function sendLevelUpAnnouncement(guild, member, levelData, config) {
     }
 
     const message = config.levelUpMessage
-      .replace(/{user}/g, member.toString())
-      .replace(/{level}/g, levelData.level)
-      .replace(/{xp}/g, levelData.xp)
-      .replace(/{xpNeeded}/g, getXpForLevel(levelData.level + 1));
+      ? config.levelUpMessage
+          .replace(/{user}/g, member.toString())
+          .replace(/{level}/g, levelData.level)
+          .replace(/{xp}/g, levelData.xp)
+          .replace(/{xpNeeded}/g, getXpForLevel(levelData.level + 1))
+      : `🎉 **${member}** reached **Level ${levelData.level}**!`;
 
     await levelUpChannel.send(message).catch(error => {
       logger.error(`Failed to send level up message in channel ${levelUpChannel.id}:`, error);
