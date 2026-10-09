@@ -52,3 +52,24 @@ export async function exchangeCode(code) {
 
   return data;
 }
+
+export async function discordRequest(path, accessToken) {
+  if (!accessToken) {
+    throw new Error("Discord access token is missing.");
+  }
+
+  const response = await fetch(`${DISCORD_API}${path}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error("Discord API error:", data);
+    throw new Error("Discord API request failed.");
+  }
+
+  return data;
+}
