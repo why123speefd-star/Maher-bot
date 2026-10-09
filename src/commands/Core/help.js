@@ -12,6 +12,7 @@ import {
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import { logger } from '../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -75,66 +76,74 @@ export async function createInitialHelpMenu(client) {
         }),
     ];
 
-    const botName = client?.user?.username || "Bot";
+    const botName = client?.user?.username || "MaherBot";
     const embed = createEmbed({
-        title: `📖 ${botName} Help`,
-        description: 'Set up your server, pick what to enable, then browse commands below.',
+        title: `⚡ ${botName} Command Center`,
+        description: `Welcome! Use the drop-down menu below to explore **${options.length - 1} categories** and all features available for your server.`,
         color: 'primary',
         thumbnail: client.user?.displayAvatarURL?.({ size: 1024 }),
         fields: [
             {
-                name: '🚀 Getting Started',
+                name: '🚀 Quick Setup Guide',
                 value: [
-                    '**1. Launch setup** — Run `/configwizard` to configure prefix, mod role, and logs.',
-                    '**2. Enable systems** — Use `/commands dashboard` to turn categories on or off.',                    '**3. Browse commands** — Use the menu below to view categories and commands.',
+                    '▸ `1.` **Configure Settings:** Run `/configwizard` to set up prefixes, roles, and log channels.',
+                    '▸ `2.` **Enable Features:** Run `/commands dashboard` to turn systems on or off.',
+                    '▸ `3.` **Explore Commands:** Choose a category from the selection menu below.',
                 ].join('\n'),
                 inline: false,
             },
             {
-                name: 'ℹ️ How It Works',
+                name: '⚙️ Core Systems & Protection',
                 value: [
-                    '• Dashboard commands manage each feature visually',
-                    '• Settings are saved per server',
-                    '• Slash commands and prefixes both work once enabled',
+                    '• **📈 Leveling:** XP Cooldowns (60s), 3+ char filter, & dedicated level-up channel routing.',
+                    '• **🎫 Support Tickets:** Automated ticket dashboards and staff management.',
+                    '• **🌐 Global Chat:** Multi-server cross-channel communication.',
+                    '• **🔢 Counting Game:** Automated streak counting with anti-spam checks.',
                 ].join('\n'),
                 inline: false,
             },
             {
-                name: '\u200B',
-                value: `-# ${botName} is [open source](https://youtu.be/1jCZX8s3bJE?si=NPOYx-vxVE1I5vJK)`,
+                name: '📌 Need Additional Help?',
+                value: 'If you encounter any issues or bugs, click the **Report Bug** button below to submit a ticket.',
                 inline: false,
             },
         ],
     });
 
     embed.setFooter({ 
-        text: "Made with Maher" 
+        text: `Made with Maher • ${botName}`,
+        iconURL: client.user?.displayAvatarURL?.({ size: 128 })
     });
     embed.setTimestamp();
 
     const bugReportButton = new ButtonBuilder()
         .setCustomId(BUG_REPORT_BUTTON_ID)
         .setLabel("Report Bug")
+        .setEmoji("🐛")
         .setStyle(ButtonStyle.Danger);
 
-    const supportButton = new ButtonBuilder()
-        .setLabel("Support Maher Server")
+    const supportServerButton = new ButtonBuilder()
+        .setLabel("Support Server")
+        .setEmoji("💬")
         .setURL("https://discord.gg/kBTgy5dpTF")
         .setStyle(ButtonStyle.Link);
-    const supportButton = new ButtonBuilder()
-        .setLabel("Want join AKDRAGONx ")
+
+    const akdragonServerButton = new ButtonBuilder()
+        .setLabel("AKDRAGONx Server")
+        .setEmoji("🐉")
         .setURL("https://discord.gg/xAzH6uPsu9")
         .setStyle(ButtonStyle.Link);
 
     const selectRow = createSelectMenu(
         CATEGORY_SELECT_ID,
-        "Select to view the commands",
+        "Select a command category to explore...",
         options,
     );
 
     const buttonRow = new ActionRowBuilder().addComponents([
         bugReportButton,
-        supportButton,
+        supportServerButton,
+        akdragonServerButton,
     ]);
 
     return {
@@ -147,11 +156,9 @@ export default {
     slashOnly: true,
     data: new SlashCommandBuilder()
         .setName("help")
-        .setDescription("Displays the help menu with all available commands"),
+        .setDescription("Displays the interactive help menu with command details"),
 
     async execute(interaction, guildConfig, client) {
-        
-        const { MessageFlags } = await import('discord.js');
         await InteractionHelper.safeDefer(interaction);
         
         const { embeds, components } = await createInitialHelpMenu(client);
@@ -168,8 +175,8 @@ export default {
                 }
 
                 const closedEmbed = createEmbed({
-                    title: "Help menu closed",
-                    description: "Help menu has been closed, use /help again.",
+                    title: "⏳ Help Menu Timed Out",
+                    description: "This help session has expired. Type `/help` to open a new menu.",
                     color: "secondary",
                 });
 
