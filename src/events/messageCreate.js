@@ -239,7 +239,8 @@ async function handleLeveling(message, client) {
       finalXP = Math.floor(finalXP * levelingConfig.xpMultiplier);
     }
 
-    const result = await addXp(client, message.guild, message.member, finalXP);
+    // Pass options to addXp to suppress internal default messages from xpSystem.js
+    const result = await addXp(client, message.guild, message.member, finalXP, { sendAnnouncement: false });
 
     if (result?.leveledUp) {
       logger.info(
@@ -257,13 +258,15 @@ async function handleLeveling(message, client) {
         color: 'success',
       });
 
-      // Deliver to specified leveling channel; fall back to active chat channel
-      let targetChannel = message.channel;
+      // Strict channel routing: deliver ONLY to designated channel if set
+      let targetChannel = null;
       if (levelingConfig.channelId) {
-        const designatedChannel = message.guild.channels.cache.get(levelingConfig.channelId);
-        if (designatedChannel) {
-          targetChannel = designatedChannel;
-        }
+        targetChannel = message.guild.channels.cache.get(levelingConfig.channelId);
+      }
+
+      // Fallback to active chat channel ONLY if no designated leveling channel is set
+      if (!targetChannel) {
+        targetChannel = message.channel;
       }
 
       await targetChannel.send({ embeds: [levelEmbed] }).catch(() => {});
